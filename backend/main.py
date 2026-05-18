@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Importa os models
 from app.models import usuario, operacao, lancamento, darf
