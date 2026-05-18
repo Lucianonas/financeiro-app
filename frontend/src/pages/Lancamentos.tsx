@@ -1,21 +1,23 @@
 // =============================================
 // PÁGINA DE LANÇAMENTOS FINANCEIROS
-// Controla salários, receitas e despesas
 // =============================================
 
 import { useEffect, useState } from 'react'
-import { Plus, RefreshCw } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import api from '../services/api'
 
-// Importa os componentes modulares
+// Componentes
 import TabelaLancamentos from '../components/lancamentos/TabelaLancamentos'
 import ModalLancamento from '../components/lancamentos/ModalLancamento'
 import FiltrosLancamentos from '../components/lancamentos/FiltrosLancamentos'
 import MensagemAlerta from '../components/common/MensagemAlerta'
 import ModalConfirmacao from '../components/common/ModalConfirmacao'
 
-// Tipo de um lançamento
-export interface Lancamento {
+// =============================================
+// TIPAGEM
+// =============================================
+
+export type Lancamento = {
   id: number
   tipo: string
   categoria: string
@@ -30,7 +32,10 @@ export interface Lancamento {
   observacoes?: string
 }
 
-// Estado inicial do formulário vazio
+// =============================================
+// FORMULÁRIO VAZIO
+// =============================================
+
 export const FORM_VAZIO = {
   tipo: 'RECEITA',
   categoria: 'SALARIO',
@@ -45,118 +50,205 @@ export const FORM_VAZIO = {
   observacoes: ''
 }
 
+// =============================================
+// COMPONENTE PRINCIPAL
+// =============================================
+
 export default function Lancamentos() {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([])
-  const [form, setForm] = useState<any>(FORM_VAZIO)
+  const [form, setForm] = useState(FORM_VAZIO)
+
   const [modalAberto, setModalAberto] = useState(false)
   const [editandoId, setEditandoId] = useState<number | null>(null)
+
   const [busca, setBusca] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
+
   const [loading, setLoading] = useState(true)
-  const [mensagem, setMensagem] = useState({ texto: '', tipo: '' })
+
+  const [mensagem, setMensagem] = useState({
+    texto: '',
+    tipo: ''
+  })
+
   const [confirmarExclusao, setConfirmarExclusao] = useState<number | null>(null)
 
-  useEffect(() => { buscarLancamentos() }, [])
+  // =============================================
+  // CARREGA DADOS
+  // =============================================
 
-  // Busca lançamentos do backend com filtro opcional
+  useEffect(() => {
+    buscarLancamentos()
+  }, [])
+
   async function buscarLancamentos() {
     setLoading(true)
+
     try {
       const params: any = {}
-      if (filtroTipo) params.tipo = filtroTipo
-      const response = await api.get('/lancamentos/', { params })
+
+      if (filtroTipo) {
+        params.tipo = filtroTipo
+      }
+
+      const response = await api.get('/lancamentos/', {
+        params
+      })
+
       setLancamentos(response.data)
-    } catch {
+    } catch (error) {
       mostrarMensagem('Erro ao buscar lançamentos', 'erro')
     } finally {
       setLoading(false)
     }
   }
 
-  // Mostra mensagem temporária por 3 segundos
+  // =============================================
+  // ALERTAS
+  // =============================================
+
   function mostrarMensagem(texto: string, tipo: string) {
     setMensagem({ texto, tipo })
-    setTimeout(() => setMensagem({ texto: '', tipo: '' }), 3000)
+
+    setTimeout(() => {
+      setMensagem({
+        texto: '',
+        tipo: ''
+      })
+    }, 3000)
   }
 
-  // Abre modal para novo lançamento
+  // =============================================
+  // NOVO LANÇAMENTO
+  // =============================================
+
   function novoLancamento() {
     setForm(FORM_VAZIO)
     setEditandoId(null)
     setModalAberto(true)
   }
 
-  // Abre modal preenchido para edição
+  // =============================================
+  // EDITAR
+  // =============================================
+
   function editarLancamento(l: Lancamento) {
     setForm({
       ...l,
       valor: l.valor.toString(),
-      fonte_pagadora: l.fonte_pagadora ?? '',
-      cnpj_fonte: l.cnpj_fonte ?? '',
-      observacoes: l.observacoes ?? ''
+      fonte_pagadora: l.fonte_pagadora || '',
+      cnpj_fonte: l.cnpj_fonte || '',
+      observacoes: l.observacoes || ''
     })
+
     setEditandoId(l.id)
     setModalAberto(true)
   }
 
-  // Salva novo ou atualiza existente
+  // =============================================
+  // SALVAR
+  // =============================================
+
   async function salvarLancamento() {
     try {
-      const dados = { ...form, valor: parseFloat(form.valor) }
+      const dados = {
+        ...form,
+        valor: parseFloat(form.valor)
+      }
+
       if (editandoId) {
         await api.put(`/lancamentos/${editandoId}`, dados)
-        mostrarMensagem('Lançamento atualizado!', 'sucesso')
+
+        mostrarMensagem(
+          'Lançamento atualizado com sucesso!',
+          'sucesso'
+        )
       } else {
         await api.post('/lancamentos/', dados)
-        mostrarMensagem('Lançamento criado!', 'sucesso')
+
+        mostrarMensagem(
+          'Lançamento criado com sucesso!',
+          'sucesso'
+        )
       }
+
       setModalAberto(false)
+
       buscarLancamentos()
+
     } catch (err: any) {
-      mostrarMensagem(err.response?.data?.detail ?? 'Erro ao salvar', 'erro')
+      mostrarMensagem(
+        err.response?.data?.detail || 'Erro ao salvar lançamento',
+        'erro'
+      )
     }
   }
 
-  // Deleta após confirmação
+  // =============================================
+  // EXCLUIR
+  // =============================================
+
   async function deletarLancamento(id: number) {
     try {
       await api.delete(`/lancamentos/${id}`)
-      mostrarMensagem('Lançamento excluído!', 'sucesso')
+
+      mostrarMensagem(
+        'Lançamento excluído com sucesso!',
+        'sucesso'
+      )
+
       setConfirmarExclusao(null)
+
       buscarLancamentos()
-    } catch {
-      mostrarMensagem('Erro ao excluir', 'erro')
+
+    } catch (error) {
+      mostrarMensagem('Erro ao excluir lançamento', 'erro')
     }
   }
 
-  // Filtra pelo texto digitado na busca
-  const lancamentosFiltrados = lancamentos.filter(l =>
+  // =============================================
+  // FILTROS
+  // =============================================
+
+  const lancamentosFiltrados = lancamentos.filter((l) =>
     l.descricao.toLowerCase().includes(busca.toLowerCase()) ||
     l.categoria.toLowerCase().includes(busca.toLowerCase())
   )
+
+  // =============================================
+  // RENDER
+  // =============================================
 
   return (
     <div className="space-y-6">
 
       {/* Cabeçalho */}
       <div className="flex items-center justify-between">
+
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Lançamentos Financeiros</h2>
-          <p className="text-gray-500 text-sm mt-1">Controle suas receitas e despesas</p>
+          <h1 className="text-2xl font-bold text-gray-800">
+            Lançamentos Financeiros
+          </h1>
+
+          <p className="text-sm text-gray-500 mt-1">
+            Controle suas receitas e despesas
+          </p>
         </div>
+
         <button
           onClick={novoLancamento}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition"
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition"
         >
           <Plus size={18} />
           Novo Lançamento
         </button>
+
       </div>
 
-      {/* Mensagem de sucesso ou erro */}
+      {/* Mensagem */}
       <MensagemAlerta mensagem={mensagem} />
 
-      {/* Barra de busca e filtros */}
+      {/* Filtros */}
       <FiltrosLancamentos
         busca={busca}
         setBusca={setBusca}
@@ -165,7 +257,7 @@ export default function Lancamentos() {
         onAtualizar={buscarLancamentos}
       />
 
-      {/* Tabela de lançamentos */}
+      {/* Tabela */}
       <TabelaLancamentos
         lancamentos={lancamentosFiltrados}
         loading={loading}
@@ -173,15 +265,15 @@ export default function Lancamentos() {
         onExcluir={(id) => setConfirmarExclusao(id)}
       />
 
-      {/* Modal de confirmação de exclusão */}
+      {/* Modal exclusão */}
       <ModalConfirmacao
         aberto={confirmarExclusao !== null}
-        onConfirmar={() => deletarLancamento(confirmarExclusao!)}
-        onCancelar={() => setConfirmarExclusao(null)}
         mensagem="Tem certeza que deseja excluir este lançamento?"
+        onCancelar={() => setConfirmarExclusao(null)}
+        onConfirmar={() => deletarLancamento(confirmarExclusao!)}
       />
 
-      {/* Modal de formulário */}
+      {/* Modal formulário */}
       <ModalLancamento
         aberto={modalAberto}
         form={form}
@@ -190,6 +282,7 @@ export default function Lancamentos() {
         onSalvar={salvarLancamento}
         onFechar={() => setModalAberto(false)}
       />
+
     </div>
   )
 }

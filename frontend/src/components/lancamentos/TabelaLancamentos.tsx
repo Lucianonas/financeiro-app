@@ -4,7 +4,7 @@
 // =============================================
 
 import { Pencil, Trash2, RefreshCw } from 'lucide-react'
-import { Lancamento } from '../../pages/Lancamentos'
+import type { Lancamento } from '../../types/lancamento'
 
 // Formata valor para Real
 function formatReal(valor: number) {
